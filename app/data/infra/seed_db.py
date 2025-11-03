@@ -4,7 +4,7 @@ from random import choice, randint
 conn = psycopg2.connect(dbname='demo', user='demo', password='demo', host='localhost')
 cur = conn.cursor()
 
-# Create tables
+# Create table34567
 cur.execute("""
 CREATE TABLE IF NOT EXISTS users (
     id serial PRIMARY KEY,
