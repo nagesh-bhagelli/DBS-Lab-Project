@@ -2,3 +2,5 @@ source .venv/bin/activate
 docker-compose up -d
 psql -h localhost -p 5432 -U demo -d demo
 
+//windows
+docker compose exec db psql -U demo -d demo
