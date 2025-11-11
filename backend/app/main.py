@@ -1,12 +1,17 @@
 # app/main.py
 import os
 import json
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends
 from pydantic import BaseModel
 import psycopg2
+from database import get_db,init_db
+from models import User, Item, Order
+from sqlalchemy import func
+from sqlalchemy.orm import Session
+
 
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://demo:demo@localhost:5432/demo")
-RECS_FILE = os.path.join(os.path.dirname(__file__), "../data/recommendations.json")
+RECS_FILE = os.path.join(os.path.dirname(__file__), "../../data/recommendations.json")
 AUDIT_TABLE_SQL = """
 CREATE TABLE IF NOT EXISTS index_audit (
   id serial PRIMARY KEY,
@@ -26,7 +31,8 @@ def get_conn():
     return psycopg2.connect(DATABASE_URL)
 
 @app.on_event("startup")
-def startup():
+async def startup():
+    init_db()
     # ensure audit table exists
     conn = get_conn()
     cur = conn.cursor()
@@ -166,3 +172,44 @@ def apply_index(req: ApplyRequest):
             raise HTTPException(status_code=500, detail=str(e))
     else:
         return {"status":"dry-run", "index": idx_name, "exists": existing}
+
+
+
+@app.get("/byCity")
+def by_city(db: Session = Depends(get_db)):
+    results = (
+        db.query(User.city, func.count(User.id).label("user_count"))
+        .group_by(User.city)
+        .all()
+    )
+    return results
+
+@app.get("/status")
+def status(db: Session = Depends(get_db)):
+    results = (
+        db.query(Order.status, func.count(Order.id).label("order_count"))
+        .group_by(Order.status)
+        .all()
+    )
+    return results
+
+@app.get("/byAge")
+def by_age(db: Session = Depends(get_db)):
+    results = (
+        db.query(User.age, func.count(User.id).label("user_count"))
+        .group_by(User.age)
+        .all()
+    )
+    return results
+
+@app.get("/mostOrderedItem")
+def most_ordered_item(db: Session = Depends(get_db)):
+    results = (
+        db.query(Item.name, func.count(Order.id).label("order_count"))
+        .join(Order)
+        .group_by(Item.name)
+        .order_by(func.count(Order.id).desc())
+        .limit(10)
+        .all()
+    )
+    return results
